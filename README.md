@@ -1,2 +1,3 @@
-# bottingmarco
-A bot to discover my portfolio
+# Botty Marco
+
+Work in progress...

@@ -1,0 +1,23 @@
+{
+  "name": "botty-marco",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A portfolio bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "keywords": [
+    "messenger",
+    "bot",
+    "portfolio"
+  ],
+  "author": "Marco Greselin <marcogreselin@me.com>",
+  "homepage": "https://marcogreselin.com",
+  "dependencies": {
+    "request": "^2.72.0",
+    "express": "*",
+    "body-parser": "*",
+    "firebase-admin": "*"
+  }
+}
