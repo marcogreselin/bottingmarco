@@ -8,7 +8,7 @@ const path = require('path')
 const products = require('./products')
 
 // Setting up Firebase
-var admin = require("firebase-admin")
+const admin = require("firebase-admin")
 admin.initializeApp({
   credential: admin.credential.cert({
     projectId: process.env.FIREBASE_PROJECTID,
@@ -20,7 +20,7 @@ admin.initializeApp({
 
 const database = admin.database()
 
-const messengerButton = "<html><head><title>Facebook Messenger Bot</title></head><body><h1>Facebook Messenger Bot</h1>This is a bot based on Messenger Platform QuickStart. For more details, see their <a href=\"https://developers.facebook.com/docs/messenger-platform/guides/quick-start\">docs</a>.<script src=\"https://button.glitch.me/button.js\" data-style=\"glitch\"></script><div class=\"glitchButton\" style=\"position:fixed;top:20px;right:20px;\"></div></body></html>"
+const messengerButton = "<html><head><title>Botting Marco</title></head><body><h1>Botting Marco</h1>This is a bot based on Messenger Platform QuickStart. For more details, see their <a href=\"https://developers.facebook.com/docs/messenger-platform/guides/quick-start\">docs</a>.<script src=\"https://button.glitch.me/button.js\" data-style=\"glitch\"></script><div class=\"glitchButton\" style=\"position:fixed;top:20px;right:20px;\"></div></body></html>"
 
 // The rest of the code implements the routes for our Express server.
 let app = express()
@@ -109,6 +109,7 @@ function receivedMessage(event) {
 
 }
 
+// Store the initial stage and condition for tracking purposes
 function storeMessageInitial(event,snapshot, callback) {
   const sanitizedMessageID=event.message.mid.replace(/\.|#|\$|\[|\]/g,"")  
   const userRef = database.ref(`message/${event.sender.id}/${sanitizedMessageID}`)
@@ -119,6 +120,7 @@ function storeMessageInitial(event,snapshot, callback) {
   }, callback())
 }
 
+// Store the final stage and condition for tracking purposes
 function storeMessageFinal(event, final) {
   const sanitizedMessageID=event.message.mid.replace(/\.|#|\$|\[|\]/g,"")  
   const userRef = database.ref(`message/${event.sender.id}/${sanitizedMessageID}/final`)
@@ -128,6 +130,7 @@ function storeMessageFinal(event, final) {
   })
 }
 
+// When message for first time, store user information to greet them
 function storeUserData(event, callback) {
   request(`https://graph.facebook.com/v2.6/${event.sender.id}?fields=first_name,last_name,profile_pic,locale,timezone,gender&access_token=${process.env.PAGE_ACCESS_TOKEN}`, (error, response, body) => {
     if(!error){
@@ -149,6 +152,8 @@ function storeUserData(event, callback) {
   }) 
 }
 
+// Main function that process the reply. Think of it as the controller.
+// It's based on the current state and condition and is in charge of editing DB data.
 function processReply(event) {
   const senderID = event.sender.id
   const userRef = database.ref(`user/${senderID}`)
@@ -165,80 +170,88 @@ function processReply(event) {
     let reply
     let finalStage,finalCondition 
     console.log("time since last message: "+Math.round((( (timeNow-lastReceivedTime) % 86400000) % 3600000) / 60000))
+    
+    // The keyword restart is introduced here to start from scratch. Same behaviour when last message is old.
+    // It will present an informational message before starting all over again.
     if(message.toLowerCase()=="restart" || (Math.round((( (timeNow-lastReceivedTime) % 86400000) % 3600000) / 60000)>10 && stage != 0)){
         return userRef.update({stage:1, condition:3, lastReceivedTime: admin.database.ServerValue.TIMESTAMP, awaiting:false}, err => {
           if(err)
             new Error("Firebase connection error in processReply()")
           else {
+            // This function is in charge of sending the message back.
+            // Stage 3 is special for this case of restarting.
             selectReply(1, 3, senderID, {userName:snapshot.child("userDetails/firstName").val()})
+            // This one stores the final stage for tracking.
             storeMessageFinal(event,{stage:1, condition:3})
           }
         })
     } else {
       switch(stage){
-      case(0):
-        userRef.update({stage:1, condition:1, lastReceivedTime: admin.database.ServerValue.TIMESTAMP, awaiting:false}, err =>{
-          if(err)
-            return new Error("Firebase connection error in processReply()")
-          else{
-            selectReply(1, 1, senderID, {userName:firstNameStored})
-            storeMessageFinal(event,{stage:1, condition:1})
-          }
-        })
-        break
-      case(1):
-        reply = validator(1, message)
-        if(reply != false) {
-          userRef.update({stage:2, condition:1, answers:{minutes:reply}, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+        case(0):
+          userRef.update({stage:1, condition:1, lastReceivedTime: admin.database.ServerValue.TIMESTAMP, awaiting:false}, err =>{
             if(err)
               return new Error("Firebase connection error in processReply()")
-            else {
-              selectReply(2, 1, senderID, {minutes: reply}) 
-              storeMessageFinal(event,{stage:2, condition:1})
+            else{
+              selectReply(1, 1, senderID, {userName:firstNameStored})
+              storeMessageFinal(event,{stage:1, condition:1})
             }
-              
           })
-        } else {
-          userRef.update({stage:1, condition:2, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
-            if (!err) {
-              selectReply(1, 2, senderID)
-              storeMessageFinal(event,{stage:1, condition:2})
-            }
-              
-          })
-        }
-        break
-      case(2):
-        reply = validator(2, message)
-          if(reply === "yes") {
-            userRef.update({stage:3, condition:1, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+          break
+        case(1):
+          reply = validator(1, message)
+          if(reply != false) {
+            userRef.update({stage:2, condition:1, answers:{minutes:reply}, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
               if(err)
                 return new Error("Firebase connection error in processReply()")
               else {
-                selectReply(3, 1, senderID) 
-                storeMessageFinal(event,{stage:3, condition:1})
+                //
+                selectReply(2, 1, senderID, {minutes: reply}) 
+                storeMessageFinal(event,{stage:2, condition:1})
               }
-                
-            })
-          } else if(reply==="no"){
-            userRef.update({stage:1, condition:4, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
-              if(err)
-                return new Error("Firebase connection error in processReply()")
-              else {
-                selectReply(1, 4, senderID) 
-                storeMessageFinal(event,{stage:1, condition:4})
-              }
-                
+
             })
           } else {
-            userRef.update({stage:2, condition:2, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
-              if (!err){
-                selectReply(2, 2, senderID)
-                storeMessageFinal(event,{stage:2, condition:2})
+            userRef.update({stage:1, condition:2, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+              if (!err) {
+                // Stage 2 is for unvalidated messages
+                selectReply(1, 2, senderID)
+                storeMessageFinal(event,{stage:1, condition:2})
               }
-                
+
             })
-          }   
+          }
+          break
+        case(2):
+          reply = validator(2, message)
+            if(reply === "yes") {
+              userRef.update({stage:3, condition:1, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+                if(err)
+                  return new Error("Firebase connection error in processReply()")
+                else {
+                  selectReply(3, 1, senderID) 
+                  storeMessageFinal(event,{stage:3, condition:1})
+                }
+
+              })
+            } else if(reply==="no"){
+              userRef.update({stage:1, condition:4, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+                if(err)
+                  return new Error("Firebase connection error in processReply()")
+                else {
+                  selectReply(1, 4, senderID) 
+                  storeMessageFinal(event,{stage:1, condition:4})
+                }
+
+              })
+            } else {
+              userRef.update({stage:2, condition:2, lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err =>{
+                if (!err){
+                  selectReply(2, 2, senderID)
+                  storeMessageFinal(event,{stage:2, condition:2})
+                }
+
+              })
+            }   
           break
         case 3:
           reply = validator(3, message)
@@ -248,18 +261,18 @@ function processReply(event) {
                 selectReply(3, 2, senderID)
                 storeMessageFinal(event,{stage:3, condition:2})
               }
-                
+
             })
           } else {
             userRef.update({stage:4, condition:1, answers:{minutes:minutesStored, interests:{business:reply.business, coding:reply.coding, design:reply.design}},lastReceivedTime: admin.database.ServerValue.TIMESTAMP}, err => {
               if (!err){
+                // This generates the ordered array and then will use it to send the reply.
                 orderedArray({business:reply.business, code:reply.coding, design:reply.design}, orderedBucket => {
-                  
+
                   const numberOfElements=initialNumberOfElements(minutesStored)
                   selectReply(4, 1, senderID, {name:firstNameStored, orderedBucket, numberOfElements})
                   storeMessageFinal(event,{stage:4, condition:1})
                 })
-
               }  
             })
           }
@@ -272,13 +285,14 @@ function processReply(event) {
               selectReply(5, 1, senderID)
               storeMessageFinal(event,{stage:5, condition:1})
             }
-          })
-          break
+          })  
+        break
       } 
     }
   })
 }
 
+// Function used to validate messages.
 function validator(stage, message){
   let clarifiedReply
   message = message.toLowerCase()
@@ -317,6 +331,7 @@ function validator(stage, message){
   }
 }
 
+// This is somehow the view of the bot.
 function selectReply(stage, condition, recipientId, props) {
   const userRef = database.ref(`user/${recipientId}`)  
   
@@ -329,14 +344,11 @@ function selectReply(stage, condition, recipientId, props) {
           sendTextMessage(recipientId, "It's been a while since last time so I'll start from scratch! <3", ()=>sendSenderAction(recipientId, "typing_on"))
         }
         
-
         setTimeout(()=>sendTextMessage(recipientId, `Howdy ${props.userName}! I’m Marco :)`, ()=> sendSenderAction(recipientId, "typing_on")),0+delayIfConditionThree)
         setTimeout(()=>sendTextMessage(recipientId, "Botting Marco.", ()=>sendSenderAction(recipientId, "typing_on")),1000+delayIfConditionThree)
         setTimeout(()=>sendTextMessage(recipientId, "Let me show you some of my recent work. This is the first portfolio bot ever. (afaik) :p", ()=>sendSenderAction(recipientId, "typing_on")),5000+delayIfConditionThree)
         setTimeout(()=>sendTextMessage(recipientId, "How many minutes do you have?", ()=>sendSenderAction(recipientId, "typing_off")),7000+delayIfConditionThree)
           
-
-
         userRef.update({awaiting: true})
         
       } else if (condition===2){
@@ -356,6 +368,7 @@ function selectReply(stage, condition, recipientId, props) {
     case 3:
       if(condition===1){
         sendTextMessage(recipientId, `Awesome! What are you interested in?`, ()=>sendSenderAction(recipientId, "typing_on"))
+        // For this we send some buttons to make the interaction easier.
         setTimeout(()=>sendOptions(recipientId, ()=>sendSenderAction(recipientId, "typing_off")), 1500)
       } else if(condition===2) {
         sendTextMessage(recipientId, `Yeah, I'm just a dummy bot and didn't get this one. To make my life easier say business, coding or design or more than one in one message and I'll figure it out`, ()=>sendSenderAction(recipientId, "typing_off"))
@@ -363,15 +376,40 @@ function selectReply(stage, condition, recipientId, props) {
       break
     case 4:
       if(condition===1){
-        if(props.numberOfElements===0)
-          sendTextMessage(recipientId, `Oh it looks like someone is in a rush!`, ()=>sendSenderAction(recipientId, "typing_off"))
+        if(props.numberOfElements===0){
+          sendTextMessage(recipientId, `Looks like someone is in a hurry! That's fine. Check these out:`, ()=>sendSenderAction(recipientId, "typing_on"))
+          let contacts = [
+            {
+              url: "https://www.linkedin.com/in/marcogreselin/",
+              title: "LinkedIn",
+              image: "https://firebasestorage.googleapis.com/v0/b/botty-marco.appspot.com/o/chat_linkedin.png?alt=media&token=5cebeb74-ace4-4d10-9f01-534be8fdfb5b",
+              subtitle: "LinkedIn has all my professional experience in a nutshell."
+            },
+            {
+              url: "https://www.github.com/marcogreselin",
+              title: "Github",
+              image: "https://firebasestorage.googleapis.com/v0/b/botty-marco.appspot.com/o/chat_gh.png?alt=media&token=bc6a1aa3-5484-429f-bcab-eb7abb5a6594",
+              subtitle: "In so little time GitHub will only prove that I can use Git (I know...) and that this cheeky website was manually crafted."
+            },
+            {
+              url: "https://www.instagram.com/marcogreselin",
+              title: "Instagram",
+              image: "https://firebasestorage.googleapis.com/v0/b/botty-marco.appspot.com/o/chat_ig.png?alt=media&token=7eadca94-3b55-4e2d-80aa-f79ad0cb13ca",
+              subtitle: "Instagram should give you a sense of my personality."
+            }
+          ]
+          for(let i=0; i< contacts.length; i++)
+            setTimeout(()=>sendGeneric(recipientId, {url:contacts[i].url, title: contacts[i].title, image: contacts[i].image, subtitle: "heqweqweqwe"}, ()=>sendSenderAction(recipientId, "typing_on")), 1000 + i*1000)
+          setTimeout(()=>sendTextMessage(recipientId, `Now, if you still have questions, just drop me an email :) marcogreselin@me.com`, ()=>sendSenderAction(recipientId, "typing_off")), 12000)
+        }
         else {
           sendTextMessage(recipientId, `Fantastic ${props.name}. Let me think for a sec.`, ()=>sendSenderAction(recipientId, "typing_on"))
           setTimeout(()=>sendTextMessage(recipientId, `Have a look at these ${props.numberOfElements} projects. Hope you find them interesting.`, ()=>sendSenderAction(recipientId, "typing_on")), 1500)
             for(let i=0; i<props.numberOfElements;i++) 
-              setTimeout(()=>sendGeneric(recipientId, {url:`https://marcogreselin.com/work/${props.orderedBucket[i].name}`, title: props.orderedBucket[i].title, image: props.orderedBucket[i].portfolio_image, subtitle: props.orderedBucket[i].subtitle}, ()=>sendSenderAction(recipientId, "typing_off")), 1800+i*700)
-          setTimeout(()=>sendTextMessage(recipientId, `Oh and obviously let me know if I can help. All my contacts are here:`, ()=>sendSenderAction(recipientId, "typing_on")), 30000)
-          setTimeout(()=>sendTextMessage(recipientId, `:) https://marcogreselin.com/me`, ()=>sendSenderAction(recipientId, "typing_off")), 35000)
+              // We send the generic template to make a better UI.
+              setTimeout(()=>sendGeneric(recipientId, {url:`https://marcogreselin.com/work/${props.orderedBucket[i].name}`, title: props.orderedBucket[i].title, image: props.orderedBucket[i].portfolio_image, subtitle: props.orderedBucket[i].subtitle}, ()=>sendSenderAction(recipientId, "typing_off")), 3500+i*700)
+          setTimeout(()=>sendTextMessage(recipientId, `Oh and obviously let me know if I can help. All my contacts are here :)`, ()=>sendSenderAction(recipientId, "typing_on")), 30000)
+          setTimeout(()=>sendTextMessage(recipientId, `https://marcogreselin.com/me`, ()=>sendSenderAction(recipientId, "typing_off")), 35000)
         }
       } 
       break
@@ -380,6 +418,7 @@ function selectReply(stage, condition, recipientId, props) {
   }
 }
 
+// Count of elements based on minutes selected.
 function initialNumberOfElements(minutes) {
     if(minutes<5)
         return 0
@@ -389,6 +428,7 @@ function initialNumberOfElements(minutes) {
         return Math.min(4+parseInt((minutes-10)/4,10), products.length)
 }
 
+// Array ordering logic based on interests.
 function orderedArray(props, callback) {
     let sortedArray = products
     console.log(props.design)
@@ -410,10 +450,11 @@ function orderedArray(props, callback) {
 }
 
 
-
 //////////////////////////
 // Sending helpers
 //////////////////////////
+
+// This is for the portfolio projects.
 function sendGeneric(recipientId, message, callback) {
   const messageData = {
     "recipient":{
@@ -434,7 +475,7 @@ function sendGeneric(recipientId, message, callback) {
                 "url": message.url,
                 "messenger_extensions": true,
                 "webview_height_ratio": "tall",
-                "fallback_url": "https://marcogreselin.com"
+                "fallback_url": message.url
               }
             }
           ]
@@ -446,6 +487,7 @@ function sendGeneric(recipientId, message, callback) {
   callSendAPI(messageData, callback)
 }
 
+// This is for the interests selection.
 function sendOptions(recipientId, callback) {
   const messageData = 
   {
@@ -453,7 +495,7 @@ function sendOptions(recipientId, callback) {
       "id":recipientId
     },
     "message":{
-      "text":"You can choose between coding, business or design (or a combination if you want :) )",
+      "text":"Choose between coding, business or design – or a combination if you want :)",
       "quick_replies":[
         {
           "content_type":"text",
@@ -489,9 +531,7 @@ function sendTextMessage(recipientId, messageText, callback) {
   callSendAPI(messageData, callback)
 }
 
-
-
-
+// This is for the typing effect.
 function sendSenderAction(recipientId, action) {
   const messageData = {
     recipient: {
@@ -502,7 +542,6 @@ function sendSenderAction(recipientId, action) {
   
   callSendAPI(messageData)
 }
-
 
 function callSendAPI(messageData, callback) {
   request({
@@ -528,6 +567,6 @@ function callSendAPI(messageData, callback) {
 }
 
 // Set Express to listen out for HTTP requests
-var server = app.listen(process.env.PORT || 3000, function () {
+const server = app.listen(process.env.PORT || 3000, function () {
   console.log("Listening on port %s", server.address().port)
 })
