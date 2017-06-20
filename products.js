@@ -692,7 +692,7 @@ const products=[
             }
         },
         "title": "Three languages of business",
-        "subtitle": "One phenomenon explained in three languages to account for today's business world",
+        "subtitle": "One phenomenon explained in three languages: words, sketches and UML",
         "content": [
             {
                 "type": "image",

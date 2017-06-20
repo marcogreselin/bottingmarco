@@ -54,6 +54,10 @@ app.get('/privacy', (req, res) => {
   res.sendFile(__dirname + '/privacy.html')
 })
 
+app.get('*', (req, res) => {
+  res.redirect('https://marcogreselin.com')
+})
+
 // Message processing
 app.post('/webhook', (req, res) => {
   console.log(req.body)
@@ -591,6 +595,8 @@ function callSendAPI(messageData, callback) {
     }
   })
 }
+
+
 
 // Set Express to listen out for HTTP requests
 const server = app.listen(process.env.PORT || 3000, function () {
