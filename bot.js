@@ -393,7 +393,7 @@ function selectReply(stage, condition, recipientId, props) {
               url: "https://www.github.com/marcogreselin",
               title: "Github",
               image: "https://firebasestorage.googleapis.com/v0/b/botty-marco.appspot.com/o/chat_gh.png?alt=media&token=bc6a1aa3-5484-429f-bcab-eb7abb5a6594",
-              subtitle: "In so little time GitHub will only prove that I can use Git (I know...) and that this cheeky website was manually crafted."
+              subtitle: "In so little time GitHub will only prove that I can use Git - I know..."
             },
             {
               url: "https://www.instagram.com/marcogreselin",
