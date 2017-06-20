@@ -49,6 +49,10 @@ app.get('/', (req, res) => {
   res.end()
 })
 
+app.get('/privacy', (req, res) => {
+  res.sendFile(__dirname + '/privacy.html')
+})
+
 // Message processing
 app.post('/webhook', (req, res) => {
   console.log(req.body)
@@ -399,7 +403,7 @@ function selectReply(stage, condition, recipientId, props) {
             }
           ]
           for(let i=0; i< contacts.length; i++)
-            setTimeout(()=>sendGeneric(recipientId, {url:contacts[i].url, title: contacts[i].title, image: contacts[i].image, subtitle: "heqweqweqwe"}, ()=>sendSenderAction(recipientId, "typing_on")), 1000 + i*1000)
+            setTimeout(()=>sendGeneric(recipientId, {url:contacts[i].url, title: contacts[i].title, image: contacts[i].image, subtitle: contacts[i].subtitle}, ()=>sendSenderAction(recipientId, "typing_on")), 1000 + i*1000)
           setTimeout(()=>sendTextMessage(recipientId, `Now, if you still have questions, just drop me an email :) marcogreselin@me.com`, ()=>sendSenderAction(recipientId, "typing_off")), 12000)
         }
         else {
