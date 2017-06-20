@@ -20,7 +20,7 @@ admin.initializeApp({
 
 const database = admin.database()
 
-const messengerButton = "<html><head><title>Botting Marco</title></head><body><h1>Botting Marco</h1>This is a bot based on Messenger Platform QuickStart. For more details, see their <a href=\"https://developers.facebook.com/docs/messenger-platform/guides/quick-start\">docs</a>.<script src=\"https://button.glitch.me/button.js\" data-style=\"glitch\"></script><div class=\"glitchButton\" style=\"position:fixed;top:20px;right:20px;\"></div></body></html>"
+// const messengerButton = "<html><head><title>Botting Marco</title></head><body><h1>Botting Marco</h1>This is a bot based on Messenger Platform QuickStart. For more details, see their <a href=\"https://developers.facebook.com/docs/messenger-platform/guides/quick-start\">docs</a>.<script src=\"https://button.glitch.me/button.js\" data-style=\"glitch\"></script><div class=\"glitchButton\" style=\"position:fixed;top:20px;right:20px;\"></div></body></html>"
 
 // The rest of the code implements the routes for our Express server.
 let app = express()
@@ -44,9 +44,10 @@ app.get('/webhook', (req, res) => {
 
 // Display the web page
 app.get('/', (req, res) => {
-  res.writeHead(200, {'Content-Type': 'text/html'})
-  res.write(messengerButton)
-  res.end()
+  res.redirect('https://marcogreselin.com')
+  //res.writeHead(200, {'Content-Type': 'text/html'})
+  //res.write(messengerButton)
+  //res.end()
 })
 
 app.get('/privacy', (req, res) => {
@@ -418,7 +419,7 @@ function selectReply(stage, condition, recipientId, props) {
       } 
       break
     case 5: 
-      sendTextMessage(recipientId, `My purpose in life is limited. Say 'restart' if you want to start over again or just wait some 10 minutes and I will be back to 0.`, ()=>sendSenderAction(recipientId, "typing_off"))
+      sendRestart(recipientId, ()=>sendSenderAction(recipientId, "typing_off"))
   }
 }
 
@@ -471,9 +472,9 @@ function sendGeneric(recipientId, message, callback) {
           "template_type":"generic",
           "elements":[
              {
-              "title":message.title.substring(0, 70),
+              "title":message.title.substring(0, 79),
               "image_url":message.image,
-              "subtitle":message.subtitle.substring(0, 70),
+              "subtitle":message.subtitle.substring(0, 79),
               "default_action": {
                 "type": "web_url",
                 "url": message.url,
@@ -515,6 +516,27 @@ function sendOptions(recipientId, callback) {
           "content_type":"text",
           "title":"Design",
           "payload":"DESIGN"
+        }
+      ]
+    }
+  }
+  callSendAPI(messageData, callback)
+}
+
+// TODO: Refactor with sendOptions
+function sendRestart(recipientId, callback) {
+  const messageData = 
+  {
+    "recipient":{
+      "id":recipientId
+    },
+    "message":{
+      "text":`My purpose in life is limited. Say 'restart' if you want to start over again or just wait some 10 minutes and I will be back to 0.`,
+      "quick_replies":[
+        {
+          "content_type":"text",
+          "title":"Restart",
+          "payload":"RESTART"
         }
       ]
     }
